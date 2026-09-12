@@ -70,7 +70,7 @@ describe("codegen", () => {
     expect(types).toContain('NODE_ENV: "development" | "test" | "production"');
     expect(types).toContain("interface ProcessEnv");
     expect(types).toContain("PORT?: string");
-    expect(exampleFromSchema(schema)).toContain("DATABASE_URL=https://example.com");
+    expect(exampleFromSchema(schema)).toContain("DATABASE_URL=postgres://user:pass@localhost:5432/app");
   });
 });
 
