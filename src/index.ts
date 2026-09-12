@@ -9,5 +9,5 @@ export {
   type EnvType,
   type Issue,
 } from "./schema.js";
-export { scanText, diffExample, type Leak } from "./scan.js";
+export { scanText, diffExample, shouldScanFile, type Leak } from "./scan.js";
 export { run as runCli } from "./cli.js";

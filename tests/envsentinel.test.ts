@@ -56,6 +56,7 @@ describe("codegen", () => {
     const types = typesFromSchema(schema);
     expect(types).toContain("PORT: number");
     expect(types).toContain('NODE_ENV: "development" | "test" | "production"');
+    expect(types).toContain("interface ProcessEnv extends Env");
     expect(exampleFromSchema(schema)).toContain("DATABASE_URL=https://example.com");
   });
 });
@@ -64,6 +65,11 @@ describe("scan + diff", () => {
   it("detects openai keys", () => {
     const leaks = scanText(".env", 'OPENAI_API_KEY=sk-abcdefghijklmnopqrstuvwxyz123456\n');
     expect(leaks[0]?.kind).toBe("openai-key");
+  });
+
+  it("skips example env files", () => {
+    const leaks = scanText(".env.example", 'OPENAI_API_KEY=sk-abcdefghijklmnopqrstuvwxyz123456\n');
+    expect(leaks).toEqual([]);
   });
 
   it("diffs example vs env", () => {

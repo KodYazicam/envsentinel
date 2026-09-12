@@ -9,6 +9,7 @@ import {
   type EnvSchema,
 } from "./schema.js";
 import { scanText, diffExample } from "./scan.js";
+import { invokedDirectly } from "./main.js";
 
 function help(): string {
   return `
@@ -177,5 +178,4 @@ export function run(argv: string[], cwd = process.cwd()): number {
   }
 }
 
-const isDirect = process.argv[1]?.includes("cli");
-if (isDirect) process.exitCode = run(process.argv.slice(2));
+if (invokedDirectly(import.meta.url)) process.exitCode = run(process.argv.slice(2));

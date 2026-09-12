@@ -18,7 +18,7 @@
 `envsentinel` is the missing linter for environment variables. Point it at `env.schema.json` and it will:
 
 - **check** — coerce and validate `.env` + `process.env`
-- **scan** — find AWS / GitHub / OpenAI / Slack / PEM secrets in the tree
+- **scan** — find AWS / GitHub / OpenAI / Slack / PEM secrets (skips `.env.example`)
 - **example** — generate `.env.example`
 - **types** — generate `env.d.ts`
 - **diff** — compare `.env` against `.env.example` (the classic "works on my machine" bug)
