@@ -43,6 +43,18 @@ describe("validateEnv", () => {
     expect(result.values.NODE_ENV).toBe("test");
   });
 
+  it("accepts postgres connection strings as urls", () => {
+    const result = validateEnv(
+      {
+        PORT: "8080",
+        DATABASE_URL: "postgres://user:pass@localhost:5432/app",
+        NODE_ENV: "test",
+      },
+      schema,
+    );
+    expect(result.ok).toBe(true);
+  });
+
   it("fails on bad enum and missing url", () => {
     const result = validateEnv({ PORT: "x", NODE_ENV: "staging" }, schema);
     expect(result.ok).toBe(false);
@@ -56,7 +68,8 @@ describe("codegen", () => {
     const types = typesFromSchema(schema);
     expect(types).toContain("PORT: number");
     expect(types).toContain('NODE_ENV: "development" | "test" | "production"');
-    expect(types).toContain("interface ProcessEnv extends Env");
+    expect(types).toContain("interface ProcessEnv");
+    expect(types).toContain("PORT?: string");
     expect(exampleFromSchema(schema)).toContain("DATABASE_URL=https://example.com");
   });
 });
