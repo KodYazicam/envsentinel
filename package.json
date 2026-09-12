@@ -1,0 +1,55 @@
+{
+  "name": "envsentinel",
+  "version": "1.0.0",
+  "description": "Validate .env files against a schema, scan for leaked secrets, generate TypeScript types.",
+  "keywords": [
+    "env",
+    "dotenv",
+    "validation",
+    "secrets",
+    "typescript",
+    "cli",
+    "zod",
+    "12factor"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "Batuhan (KodYazicam) <https://github.com/KodYazicam>",
+  "homepage": "https://github.com/KodYazicam/envsentinel",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KodYazicam/envsentinel.git"
+  },
+  "type": "module",
+  "bin": {
+    "envsentinel": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  },
+  "allowScripts": {
+    "esbuild@0.21.5": true
+  }
+}
