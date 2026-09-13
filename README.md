@@ -149,7 +149,7 @@ Exit codes:
 ## GitHub Action
 
 ```yaml
-- uses: KodYazicam/envsentinel@v1
+- uses: KodYazicam/envsentinel@main
   with:
     schema: env.schema.json
     env-file: .env
@@ -175,6 +175,7 @@ Fail the job on missing production secrets; keep `.env.example` committed and `.
 ```ts
 import { readFileSync } from "node:fs";
 import { validateEnv, parseEnv, parseSchema, scanText, typesFromSchema, exampleFromSchema } from "envsentinel";
+// after: npm install /path/to/envsentinel  (this clone; not the npm registry)
 
 const schema = parseSchema(JSON.parse(readFileSync("env.schema.json", "utf8")));
 const env = parseEnv(readFileSync(".env", "utf8"));
@@ -227,6 +228,8 @@ declare global {
 **Will it print secret values?** No. `scan` prints file:line and kind only.
 
 **Is this Zod?** No. The schema is a small JSON language. There is no Zod dependency.
+
+**Is it on npm?** No. Clone this repo.
 
 ## License — KYAL-1.0
 
