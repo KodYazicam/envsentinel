@@ -12,7 +12,6 @@
     "secrets",
     "typescript",
     "cli",
-    "zod",
     "12factor"
   ],
   "license": "SEE LICENSE IN LICENSE",
@@ -21,6 +20,9 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/KodYazicam/envsentinel.git"
+  },
+  "bugs": {
+    "url": "https://github.com/KodYazicam/envsentinel/issues"
   },
   "type": "module",
   "bin": {
@@ -45,14 +47,12 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build && npm test",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "typescript": "^5.7.0",
     "vitest": "^2.1.0"
-  },
-  "allowScripts": {
-    "esbuild@0.21.5": true
   }
 }

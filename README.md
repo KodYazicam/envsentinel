@@ -8,6 +8,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/KodYazicam/envsentinel/actions"><img src="https://img.shields.io/github/actions/workflow/status/KodYazicam/envsentinel/ci.yml?style=flat-square" alt="CI"></a>
   <img src="https://img.shields.io/badge/node-%3E%3D20-339933?style=flat-square" alt="Node">
   <img src="https://img.shields.io/badge/license-KYAL--1.0-7C3AED?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/author-KodYazicam-0D0D0D?style=flat-square" alt="Author">
@@ -17,8 +18,8 @@
 
 `envsentinel` is the missing linter for environment variables. Point it at `env.schema.json` and it will:
 
-- **check** — coerce and validate `.env` plus matching keys from `process.env`
-- **scan** — find AWS / GitHub / OpenAI / Slack / PEM secrets (skips `.env.example`)
+- **check** — coerce and validate `.env`, optionally filling gaps from `process.env`
+- **scan** — find AWS / GitHub / OpenAI / Anthropic / Stripe / Slack / PEM secrets (skips `.env.example` and lockfiles)
 - **example** — generate `.env.example` (postgres URLs get `postgres://…`, not `https://example.com`)
 - **types** — generate `env.d.ts` (`Env` plus `ProcessEnv` string fields)
 - **diff** — compare `.env` against `.env.example` (the classic “works on my machine” bug)
@@ -26,6 +27,8 @@
 ```bash
 npx envsentinel check
 ```
+
+This is a **linter**, not a vault. A green `scan` does not mean “no secrets in git.” See [SECURITY.md](./SECURITY.md).
 
 ## Table of contents
 
@@ -35,6 +38,7 @@ npx envsentinel check
 - [Schema](#schema)
 - [CLI](#cli)
 - [What `check` actually reads](#what-check-actually-reads)
+- [GitHub Action](#github-action)
 - [CI](#ci)
 - [Library](#library)
 - [Troubleshooting](#troubleshooting)
@@ -54,17 +58,21 @@ npm install -g envsentinel
 
 git clone https://github.com/KodYazicam/envsentinel.git
 cd envsentinel
-npm install
+npm ci
 npm test
 ```
 
+The npm name is unscoped (`envsentinel`) on purpose: it is the command you type.
+
 ## Quick start
 
-1. Copy the demo schema or write your own `env.schema.json`.
+1. Write `env.schema.json` (copy the demo in this repo if you want a start).
 2. `npx envsentinel example` → `.env.example`
 3. Copy to `.env` and fill real values.
 4. `npx envsentinel check` in local scripts and CI.
 5. `npx envsentinel types -o src/env.d.ts` so TypeScript knows the keys.
+
+Broken JSON in the schema is a **clear error**, not a stack trace. Unknown `type` values are rejected up front.
 
 ## Schema
 
@@ -85,22 +93,24 @@ npm test
 | `string` | as-is | empty / `change-me` if `secret` |
 | `number` | `Number`, must be finite | `0` |
 | `boolean` | `true/false/1/0/yes/no/on/off` | `false` |
-| `url` | any absolute URL (`https://`, `postgres://`, `redis://`, …) | `postgres://…` when the key/description looks like a database |
+| `url` | absolute URL with an allowed scheme (`https`, `postgres`, `redis`, `mysql`, `mongodb`, `amqp`, `sqlite`) | `postgres://…` when the key/description looks like a database |
 | `email` | simple `a@b.c` | `dev@example.com` |
 | `enum` | must be in `values` | first value |
 | `json` | `JSON.parse` | `{}` |
 
+`javascript:` and `file:` URLs are **rejected**. Empty values fall back to `default` when one is declared (`PORT=` with `"default": "3000"` is valid).
+
 Field flags:
 
 - `required` — default **true**. Set `false` to allow missing keys.
-- `default` — used when the key is absent (still appears in the example file).
+- `default` — used when the key is absent or empty.
 - `secret` — placeholder becomes `change-me`.
-- `description` — comment above the example line.
+- `description` — comment above the example line. `*/` in descriptions cannot break generated TS comments.
 
 ## CLI
 
 ```bash
-envsentinel check [--schema file] [--env file]
+envsentinel check [--schema file] [--env file] [--strict] [--strict-file]
 envsentinel scan [dir]
 envsentinel example [--schema file] [-o .env.example]
 envsentinel types [--schema file] [-o env.d.ts]
@@ -112,11 +122,16 @@ envsentinel --version
 Default schema: `env.schema.json`, then `envsentinel.schema.json`.  
 Default env file: `.env`.
 
+| Flag | Meaning |
+| --- | --- |
+| `--strict` | Unknown keys in the env file are errors, not warnings |
+| `--strict-file` | Do not fill missing schema keys from `process.env` |
+
 Exit codes:
 
 | Command | `0` | `1` |
 | --- | --- | --- |
-| `check` | no errors (warnings still print) | missing/invalid required fields |
+| `check` | no errors (warnings still print unless `--strict`) | missing/invalid required fields, or `--strict` unknowns |
 | `scan` | no leaks | at least one leak |
 | `diff` | keys match, or only extras | missing keys from the example |
 | `example` / `types` | wrote the file | schema missing / I/O error |
@@ -124,15 +139,29 @@ Exit codes:
 ## What `check` actually reads
 
 1. Parse `--env` (default `.env`). Quoted values and `export KEY=` are supported. `#` comments are ignored.
-2. For keys **declared in the schema only**, fill gaps from `process.env` (CI-friendly). Extra OS env vars are **not** treated as unknown keys.
-3. Coerce + validate. Unknown keys that appear in the **file** are warnings, not errors.
+2. Unless `--strict-file`, for keys **declared in the schema only**, fill gaps from `process.env` (CI-friendly). Extra OS env vars are **not** treated as unknown keys.
+3. Coerce + validate. Unknown keys that appear in the **file** are warnings, or errors with `--strict`.
 
-`scan` walks `.env*`, `.ts`, `.js`, `.json`, `.yml`, `.py`, `.md`. It skips `.env.example`, `.env.sample`, `.env.template`, and lockfiles so documented placeholders do not fail CI.
+`scan` walks `.env*`, `.ts`, `.js`, `.json`, `.yml`, `.py`, `.md`. It skips `node_modules`, `.git`, `dist`, `build`, `coverage`, `.venv`, `vendor`, `.env.example`, `.env.sample`, `.env.template`, and lockfiles so documented placeholders do not fail CI.
+
+## GitHub Action
+
+```yaml
+- uses: KodYazicam/envsentinel@v1
+  with:
+    schema: env.schema.json
+    env-file: .env
+    scan: true
+    strict: false
+    strict-file: false
+```
+
+The action installs the published CLI and runs `check` (then `scan` unless you set `scan: false`).
 
 ## CI
 
 ```yaml
-- run: npx envsentinel check
+- run: npx envsentinel check --strict-file
 - run: npx envsentinel scan .
 - run: npx envsentinel diff
 ```
@@ -143,8 +172,9 @@ Fail the job on missing production secrets; keep `.env.example` committed and `.
 
 ```ts
 import { readFileSync } from "node:fs";
-import { validateEnv, parseEnv, scanText, typesFromSchema, exampleFromSchema } from "envsentinel";
+import { validateEnv, parseEnv, parseSchema, scanText, typesFromSchema, exampleFromSchema } from "envsentinel";
 
+const schema = parseSchema(JSON.parse(readFileSync("env.schema.json", "utf8")));
 const env = parseEnv(readFileSync(".env", "utf8"));
 const result = validateEnv(env, schema);
 if (!result.ok) {
@@ -179,9 +209,11 @@ declare global {
 | Symptom | Fix |
 | --- | --- |
 | `schema not found` | Add `env.schema.json` or `--schema path` |
-| `url must be…` / `not a url` | Value must be absolute (`postgres://…` is valid; `localhost:5432` is not) |
+| `invalid JSON` | The schema file is not valid JSON |
+| `url scheme "javascript:" is not allowed` | Use `https://` or `postgres://` |
 | `scan` fails on the example file | Rename to `.env.example` (skipped) or remove the fake `sk-` placeholder |
-| `check` warns about extra keys | Either add them to the schema or ignore warnings; they are not fatal |
+| `check` warns about extra keys | Add them to the schema, or pass `--strict` if you want that to fail |
+| CI is green but `.env` is empty | You filled keys from `process.env`. Use `--strict-file` |
 | Types say `PORT: number` but `process.env.PORT` is a string | Use `validateEnv` for runtime values; `ProcessEnv` is optional strings |
 
 ## FAQ
@@ -192,9 +224,11 @@ declare global {
 
 **Will it print secret values?** No. `scan` prints file:line and kind only.
 
+**Is this Zod?** No. The schema is a small JSON language. There is no Zod dependency.
+
 ## License — KYAL-1.0
 
-Free to use and modify. **Attribution is mandatory.**
+Free to use and modify. **Attribution is mandatory.** Not OSI-approved; MIT-shaped plus credit.
 
 ```
 Author : Batuhan (KodYazicam)

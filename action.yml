@@ -1,0 +1,44 @@
+name: envsentinel
+description: Validate .env against env.schema.json and optionally scan the tree for leaked secrets.
+author: KodYazicam
+branding:
+  icon: shield
+  color: purple
+inputs:
+  schema:
+    description: Path to env.schema.json
+    required: false
+    default: env.schema.json
+  env-file:
+    description: Path to the env file to check
+    required: false
+    default: .env
+  scan:
+    description: Also run envsentinel scan .
+    required: false
+    default: "true"
+  strict:
+    description: Fail on unknown keys
+    required: false
+    default: "false"
+  strict-file:
+    description: Do not fill missing keys from process.env
+    required: false
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: Install envsentinel
+      shell: bash
+      run: npm install -g envsentinel@^1.0.0
+    - name: Check env
+      shell: bash
+      run: |
+        extra=()
+        if [ "${{ inputs.strict }}" = "true" ]; then extra+=(--strict); fi
+        if [ "${{ inputs.strict-file }}" = "true" ]; then extra+=(--strict-file); fi
+        envsentinel check --schema "${{ inputs.schema }}" --env "${{ inputs.env-file }}" "${extra[@]}"
+    - name: Scan secrets
+      if: ${{ inputs.scan == 'true' }}
+      shell: bash
+      run: envsentinel scan .

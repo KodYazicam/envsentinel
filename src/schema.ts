@@ -23,6 +23,47 @@ export interface Issue {
 
 const TRUE = new Set(["1", "true", "yes", "on"]);
 const FALSE = new Set(["0", "false", "no", "off"]);
+const TYPES: EnvType[] = ["string", "number", "boolean", "url", "email", "enum", "json"];
+const URL_SCHEMES = new Set(["http:", "https:", "postgres:", "postgresql:", "mysql:", "mongodb:", "mongo:", "redis:", "rediss:", "amqp:", "amqps:", "sqlite:"]);
+
+export function parseSchema(raw: unknown, source = "schema"): EnvSchema {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(`${source}: expected a JSON object with a "fields" map`);
+  }
+  const data = raw as Record<string, unknown>;
+  if (!data.fields || typeof data.fields !== "object" || Array.isArray(data.fields)) {
+    throw new Error(`${source}: missing "fields" object`);
+  }
+  const fields: Record<string, FieldSchema> = {};
+  for (const [key, value] of Object.entries(data.fields as Record<string, unknown>)) {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+      throw new Error(`${source}: invalid field name "${key}"`);
+    }
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error(`${source}: field ${key} must be an object`);
+    }
+    const field = value as Record<string, unknown>;
+    if (!TYPES.includes(field.type as EnvType)) {
+      throw new Error(`${source}: field ${key} has unknown type "${String(field.type)}"`);
+    }
+    if (field.type === "enum" && (!Array.isArray(field.values) || field.values.length === 0)) {
+      throw new Error(`${source}: field ${key} (enum) needs a non-empty "values" array`);
+    }
+    fields[key] = {
+      type: field.type as EnvType,
+      required: field.required as boolean | undefined,
+      default: field.default as string | undefined,
+      values: field.values as string[] | undefined,
+      secret: field.secret as boolean | undefined,
+      description: typeof field.description === "string" ? field.description : undefined,
+    };
+  }
+  return {
+    $schema: typeof data.$schema === "string" ? data.$schema : undefined,
+    name: typeof data.name === "string" ? data.name : undefined,
+    fields,
+  };
+}
 
 export function coerce(value: string, field: FieldSchema): unknown {
   switch (field.type) {
@@ -46,6 +87,9 @@ export function coerce(value: string, field: FieldSchema): unknown {
       }
       if (!url.protocol || url.protocol === ":" || !url.host) {
         throw new Error("not a url");
+      }
+      if (!URL_SCHEMES.has(url.protocol)) {
+        throw new Error(`url scheme "${url.protocol}" is not allowed`);
       }
       return value;
     }
@@ -74,7 +118,7 @@ export function validateEnv(
   const issues: Issue[] = [];
   const values: Record<string, unknown> = {};
   for (const [key, field] of Object.entries(schema.fields)) {
-    const raw = env[key] ?? field.default;
+    const raw = env[key] === undefined || env[key] === "" ? field.default : env[key];
     if (raw === undefined || raw === "") {
       if (field.required !== false) {
         issues.push({ key, message: "missing required variable", severity: "error" });
@@ -124,7 +168,7 @@ export function typesFromSchema(schema: EnvSchema): string {
     .map(([key, field]) => {
       const optional = field.required === false && field.default === undefined;
       const ts = tsType(field);
-      const comment = field.description ? `  /** ${field.description} */\n` : "";
+      const comment = field.description ? `  /** ${sanitizeComment(field.description)} */\n` : "";
       return `${comment}  ${key}${optional ? "?" : ""}: ${ts};`;
     })
     .join("\n");
@@ -158,6 +202,10 @@ function placeholderFor(key: string, field: FieldSchema): string {
     default:
       return field.secret ? "change-me" : "";
   }
+}
+
+function sanitizeComment(value: string): string {
+  return value.replaceAll("*/", "*∕").replaceAll("\n", " ");
 }
 
 function tsType(field: FieldSchema): string {

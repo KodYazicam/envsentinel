@@ -1,11 +1,12 @@
 # Contributing to envsentinel
 
-KYAL-1.0 — attribution stays with [KodYazicam](https://github.com/KodYazicam).
-
 ```bash
-npm install
+npm ci
 npm test
-npm run build
+npm run typecheck
 ```
 
-Keep the schema language small. New field types need a coerce path, a type emitter, an example placeholder, and a test.
+- Schema load must go through `parseSchema` (no raw `JSON.parse` casts).
+- `scan` must not print secret values.
+- New field types need coerce + example placeholder + a test.
+- Keep KYAL-1.0 attribution.

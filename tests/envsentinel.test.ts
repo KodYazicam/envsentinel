@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseEnv } from "../src/parse.js";
-import { validateEnv, typesFromSchema, exampleFromSchema, type EnvSchema } from "../src/schema.js";
+import { validateEnv, typesFromSchema, exampleFromSchema, parseSchema, type EnvSchema } from "../src/schema.js";
 import { scanText, diffExample } from "../src/scan.js";
 import { run } from "../src/cli.js";
 
@@ -107,5 +107,21 @@ describe("cli", () => {
     expect(readFileSync(join(dir, "env.d.ts"), "utf8")).toContain("export interface Env");
     writeFileSync(join(dir, "leak.env"), "TOKEN=sk-abcdefghijklmnopqrstuvwxyz123456\n");
     expect(run(["scan"], dir)).toBe(1);
+  });
+
+  it("rejects a broken schema and --strict unknown keys", () => {
+    const dir = mkdtempSync(join(tmpdir(), "envsentinel-bad-"));
+    writeFileSync(join(dir, "env.schema.json"), "{not json");
+    expect(run(["check"], dir)).toBe(1);
+    writeFileSync(join(dir, "env.schema.json"), JSON.stringify({ fields: { PORT: { type: "number", default: "1" } } }));
+    writeFileSync(join(dir, ".env"), "PORT=1\nUNKNOWN=1\n");
+    expect(run(["check", "--strict"], dir)).toBe(1);
+  });
+});
+
+describe("parseSchema", () => {
+  it("rejects missing fields and unknown types", () => {
+    expect(() => parseSchema({})).toThrow(/fields/);
+    expect(() => parseSchema({ fields: { X: { type: "nope" } } })).toThrow(/unknown type/);
   });
 });
