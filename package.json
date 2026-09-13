@@ -1,9 +1,7 @@
 {
   "name": "envsentinel",
   "version": "1.0.0",
-  "publishConfig": {
-    "access": "public"
-  },
+  "private": true,
   "description": "Validate .env files against a schema, scan for leaked secrets, generate TypeScript types.",
   "keywords": [
     "env",
@@ -47,7 +45,6 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run",
-    "prepublishOnly": "npm run build && npm test",
     "typecheck": "tsc -p tsconfig.build.json --noEmit"
   },
   "devDependencies": {

@@ -25,7 +25,9 @@
 - **diff** — compare `.env` against `.env.example` (the classic “works on my machine” bug)
 
 ```bash
-npx envsentinel check
+git clone https://github.com/KodYazicam/envsentinel.git
+cd envsentinel && npm ci && npm run build
+node dist/cli.js check
 ```
 
 This is a **linter**, not a vault. A green `scan` does not mean “no secrets in git.” See [SECURITY.md](./SECURITY.md).
@@ -52,25 +54,25 @@ This is a **linter**, not a vault. A green `scan` does not mean “no secrets in
 
 ## Install
 
-```bash
-npx envsentinel check
-npm install -g envsentinel
+Not on npm. Clone and build:
 
+```bash
 git clone https://github.com/KodYazicam/envsentinel.git
 cd envsentinel
 npm ci
 npm test
+npm run build
+node dist/cli.js check
+# optional: npm link   →  envsentinel check
 ```
-
-The npm name is unscoped (`envsentinel`) on purpose: it is the command you type.
 
 ## Quick start
 
 1. Write `env.schema.json` (copy the demo in this repo if you want a start).
-2. `npx envsentinel example` → `.env.example`
+2. `node dist/cli.js example` → `.env.example`
 3. Copy to `.env` and fill real values.
-4. `npx envsentinel check` in local scripts and CI.
-5. `npx envsentinel types -o src/env.d.ts` so TypeScript knows the keys.
+4. `node dist/cli.js check` in local scripts and CI.
+5. `node dist/cli.js types -o src/env.d.ts` so TypeScript knows the keys.
 
 Broken JSON in the schema is a **clear error**, not a stack trace. Unknown `type` values are rejected up front.
 
@@ -156,14 +158,14 @@ Exit codes:
     strict-file: false
 ```
 
-The action installs the published CLI and runs `check` (then `scan` unless you set `scan: false`).
+The action builds this repository (no npm registry) and runs `check` (then `scan` unless you set `scan: false`).
 
 ## CI
 
 ```yaml
-- run: npx envsentinel check --strict-file
-- run: npx envsentinel scan .
-- run: npx envsentinel diff
+- run: node /path/to/envsentinel/dist/cli.js check --strict-file
+- run: node /path/to/envsentinel/dist/cli.js scan .
+- run: node /path/to/envsentinel/dist/cli.js diff
 ```
 
 Fail the job on missing production secrets; keep `.env.example` committed and `.env` gitignored.
