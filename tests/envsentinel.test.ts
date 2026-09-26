@@ -80,6 +80,14 @@ describe("scan + diff", () => {
     expect(leaks[0]?.kind).toBe("openai-key");
   });
 
+  it("detects google, telegram, npm, and slack webhook leaks", () => {
+    expect(scanText("conf.env", 'G_KEY="AIzaSyA1234567890abcdefghijklmnopqrstuv"\n')[0]?.kind).toBe("google-api-key");
+    expect(scanText("conf.env", 'TG=123456789:AAEqwertyuiopasdfghjklzxcvbnm_12345\n')[0]?.kind).toBe("telegram-bot-token");
+    expect(scanText("conf.env", 'NPM=npm_Nkqrstuvwxyz0123456789abcdefghijklmn\n')[0]?.kind).toBe("npm-token");
+    const webhook = ["https://hooks.slack.com/services/T00000000", "B11111111", "XXXXXXXXXXXXXXXXXXXXXXXX"].join("/");
+    expect(scanText("conf.env", `HOOK=${webhook}\n`)[0]?.kind).toBe("slack-webhook");
+  });
+
   it("skips example env files", () => {
     const leaks = scanText(".env.example", 'OPENAI_API_KEY=sk-abcdefghijklmnopqrstuvwxyz123456\n');
     expect(leaks).toEqual([]);
@@ -116,6 +124,61 @@ describe("cli", () => {
     writeFileSync(join(dir, "env.schema.json"), JSON.stringify({ fields: { PORT: { type: "number", default: "1" } } }));
     writeFileSync(join(dir, ".env"), "PORT=1\nUNKNOWN=1\n");
     expect(run(["check", "--strict"], dir)).toBe(1);
+  });
+
+  it("check --json prints a machine-readable report without values", () => {
+    const dir = mkdtempSync(join(tmpdir(), "envsentinel-json-"));
+    writeFileSync(
+      join(dir, "env.schema.json"),
+      JSON.stringify({ fields: { DATABASE_URL: { type: "url", required: true } } }),
+    );
+    writeFileSync(join(dir, ".env"), "");
+
+    const logs: string[] = [];
+    const origLog = console.log;
+    const origErr = console.error;
+    console.log = (msg?: unknown) => {
+      logs.push(String(msg ?? ""));
+    };
+    console.error = () => {};
+    const code = run(["check", "--json"], dir);
+    console.log = origLog;
+    console.error = origErr;
+    expect(code).toBe(1);
+    const report = JSON.parse(logs.join("\n"));
+    expect(report.ok).toBe(false);
+    expect(report.variables).toBe(0);
+    expect(report.issues.some((i: { key: string }) => i.key === "DATABASE_URL")).toBe(true);
+    expect(JSON.stringify(report)).not.toContain("postgres://");
+  });
+
+  it("scan --json counts files and lists leaks", () => {
+    const dir = mkdtempSync(join(tmpdir(), "envsentinel-scan-json-"));
+    writeFileSync(
+      join(dir, ".env"),
+      "PORT=1\n",
+    );
+    writeFileSync(
+      join(dir, "leak.env"),
+      "TOKEN=sk-abcdefghijklmnopqrstuvwxyz123456\n",
+    );
+
+    const logs: string[] = [];
+    const origLog = console.log;
+    const origErr = console.error;
+    console.log = (msg?: unknown) => {
+      logs.push(String(msg ?? ""));
+    };
+    console.error = () => {};
+    const code = run(["scan", "--json"], dir);
+    console.log = origLog;
+    console.error = origErr;
+    expect(code).toBe(1);
+    const report = JSON.parse(logs.join("\n"));
+    expect(report.ok).toBe(false);
+    expect(report.filesScanned).toBeGreaterThanOrEqual(2);
+    expect(report.leaks.some((l: { file: string }) => l.file === "leak.env")).toBe(true);
+    expect(JSON.stringify(report)).not.toContain("sk-abcdefghijklmnopqrstuvwxyz");
   });
 });
 

@@ -21,8 +21,8 @@ One JSON schema drives five commands: check, scan, example, types, diff.
 Nothing is uploaded. There is no cloud.
 
 Usage:
-  envsentinel check [--schema file] [--env file] [--strict] [--strict-file]
-  envsentinel scan [dir]
+  envsentinel check [--schema file] [--env file] [--strict] [--strict-file] [--json]
+  envsentinel scan [dir] [--json]
   envsentinel example [--schema file] [-o .env.example]
   envsentinel types [--schema file] [-o env.d.ts]
   envsentinel diff [--example .env.example] [--env .env]
@@ -34,12 +34,14 @@ check:
   Reads --env, then fills missing schema keys from process.env unless
   --strict-file is set. Unknown keys in the file are warnings unless
   --strict is set (then they fail the run). Empty values fall back to
-  the field default when one is declared.
+  the field default when one is declared. --json prints a machine-
+  readable report (issues and counts only, never values).
 
 scan:
   Walks source-like files and reports AWS / GitHub / OpenAI / Anthropic /
-  Stripe / Slack / PEM shapes. Skips node_modules, .git, dist, .venv,
-  vendor, lockfiles, and .env.example.
+  Stripe / Slack / Google / Telegram / npm / PEM shapes. Skips
+  node_modules, .git, dist, .venv, vendor, lockfiles, and .env.example.
+  --json prints one JSON object with the leak list (no secret values).
 
 License: KYAL-1.0 — free to use, attribution required.
 https://github.com/KodYazicam/envsentinel
@@ -123,12 +125,23 @@ export function run(argv: string[], cwd = process.cwd()): number {
         }
       }
       const result = validateEnv(merged, schema);
+      const unknown = result.issues.filter((i) => i.severity === "warning");
+      const strictFailed = has("--strict") && unknown.length > 0;
+      if (has("--json")) {
+        const report = {
+          ok: result.ok && !strictFailed,
+          env: envName,
+          variables: Object.keys(result.values).length,
+          issues: [...result.issues, ...(strictFailed ? [{ key: "--strict", message: "unknown keys are not allowed", severity: "error" }] : [])],
+        };
+        console.log(JSON.stringify(report, null, 2));
+        return report.ok ? 0 : 1;
+      }
       for (const issue of result.issues) {
         const tag = issue.severity === "error" ? "error" : "warn ";
         console.error(`${tag}  ${issue.key}: ${issue.message}`);
       }
-      const unknown = result.issues.filter((i) => i.severity === "warning");
-      if (has("--strict") && unknown.length) {
+      if (strictFailed) {
         console.error("error  --strict: unknown keys are not allowed");
         return 1;
       }
@@ -143,6 +156,7 @@ export function run(argv: string[], cwd = process.cwd()): number {
       const target = resolve(cwd, argv[1] && !argv[1].startsWith("-") ? argv[1] : ".");
       const files = statSync(target).isDirectory() ? walkFiles(target) : [target];
       let count = 0;
+      const leaks: Array<{ file: string; line: number; kind: string; key?: string }> = [];
       for (const file of files) {
         let source = "";
         try {
@@ -150,11 +164,18 @@ export function run(argv: string[], cwd = process.cwd()): number {
         } catch {
           continue;
         }
-        const leaks = scanText(relative(cwd, file) || file, source);
-        for (const leak of leaks) {
+        const found = scanText(relative(cwd, file) || file, source);
+        leaks.push(...found);
+        for (const leak of found) {
           count += 1;
           console.error(`secret  ${leak.file}:${leak.line}  ${leak.kind}${leak.key ? `  (${leak.key})` : ""}`);
         }
+      }
+      if (has("--json")) {
+        console.log(
+          JSON.stringify({ ok: count === 0, filesScanned: files.length, leaks }, null, 2),
+        );
+        return count === 0 ? 0 : 1;
       }
       if (count === 0) {
         console.log("ok  no secrets found");

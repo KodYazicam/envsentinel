@@ -16,6 +16,10 @@ const SECRET_VALUE = [
   { kind: "stripe-webhook", regex: /\bwhsec_[A-Za-z0-9]{16,}\b/g },
   { kind: "private-key", regex: /-----BEGIN (?:RSA |EC |DSA |OPENSSH |ENCRYPTED )?PRIVATE KEY-----/g },
   { kind: "slack-token", regex: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/g },
+  { kind: "slack-webhook", regex: /\bhttps:\/\/hooks\.slack\.com\/services\/[A-Za-z0-9/_-]{10,}\b/g },
+  { kind: "google-api-key", regex: /\bAIza[0-9A-Za-z_-]{35}\b/g },
+  { kind: "telegram-bot-token", regex: /\b\d{8,10}:[A-Za-z0-9_-]{35}\b/g },
+  { kind: "npm-token", regex: /\bnpm_[A-Za-z0-9]{36}\b/g },
 ];
 
 const SKIP_SCAN =

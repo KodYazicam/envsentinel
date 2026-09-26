@@ -19,7 +19,7 @@
 `envsentinel` is the missing linter for environment variables. Point it at `env.schema.json` and it will:
 
 - **check** — coerce and validate `.env`, optionally filling gaps from `process.env`
-- **scan** — find AWS / GitHub / OpenAI / Anthropic / Stripe / Slack / PEM secrets (skips `.env.example` and lockfiles)
+- **scan** — find AWS / GitHub / OpenAI / Anthropic / Stripe / Slack / Google / Telegram / npm / PEM secrets (skips `.env.example` and lockfiles)
 - **example** — generate `.env.example` (postgres URLs get `postgres://…`, not `https://example.com`)
 - **types** — generate `env.d.ts` (`Env` plus `ProcessEnv` string fields)
 - **diff** — compare `.env` against `.env.example` (the classic “works on my machine” bug)
@@ -112,8 +112,8 @@ Field flags:
 ## CLI
 
 ```bash
-envsentinel check [--schema file] [--env file] [--strict] [--strict-file]
-envsentinel scan [dir]
+envsentinel check [--schema file] [--env file] [--strict] [--strict-file] [--json]
+envsentinel scan [dir] [--json]
 envsentinel example [--schema file] [-o .env.example]
 envsentinel types [--schema file] [-o env.d.ts]
 envsentinel diff [--example .env.example] [--env .env]
@@ -128,6 +128,14 @@ Default env file: `.env`.
 | --- | --- |
 | `--strict` | Unknown keys in the env file are errors, not warnings |
 | `--strict-file` | Do not fill missing schema keys from `process.env` |
+| `--json` | `check` / `scan` print one machine-readable JSON object instead of the human report |
+
+`--json` never contains **values** — only issue metadata, counts, and leak locations — so piping the report into CI logs or another tool cannot leak secrets:
+
+```json
+{ "ok": false, "env": ".env", "variables": 0,
+  "issues": [{ "key": "DATABASE_URL", "message": "required", "severity": "error" }] }
+```
 
 Exit codes:
 
