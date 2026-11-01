@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - name: Verify tag matches package.json
+        run: |
+          pkg_version="$(node -p "require('./package.json').version")"
+          test "v${pkg_version}" = "${GITHUB_REF_NAME}"
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - name: Notes from CHANGELOG
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v ver="$version" '
+            $0 ~ "^## \\[" ver "\\]" { found=1; next }
+            found && $0 ~ "^## \\[" { exit }
+            found { print }
+          ' CHANGELOG.md > "${RUNNER_TEMP}/notes.md"
+          test -s "${RUNNER_TEMP}/notes.md"
+      - name: Publish to npm
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if npm view "envsentinel@${version}" version >/dev/null 2>&1; then
+            echo "envsentinel@${version} is already published; skipping."
+          else
+            npm publish --provenance --access public
+          fi
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file "${RUNNER_TEMP}/notes.md"

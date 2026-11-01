@@ -9,6 +9,7 @@
 
 <p align="center">
   <a href="https://github.com/KodYazicam/envsentinel/actions"><img src="https://img.shields.io/github/actions/workflow/status/KodYazicam/envsentinel/ci.yml?style=flat-square" alt="CI"></a>
+  <a href="https://www.npmjs.com/package/envsentinel"><img src="https://img.shields.io/npm/v/envsentinel?style=flat-square" alt="npm"></a>
   <img src="https://img.shields.io/badge/node-%3E%3D20-339933?style=flat-square" alt="Node">
   <img src="https://img.shields.io/badge/license-KYAL--1.0-7C3AED?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/author-KodYazicam-0D0D0D?style=flat-square" alt="Author">
@@ -25,9 +26,14 @@
 - **diff** — compare `.env` against `.env.example` (the classic “works on my machine” bug)
 
 ```bash
-git clone https://github.com/KodYazicam/envsentinel.git
-cd envsentinel && npm ci && npm run build
-node dist/cli.js check
+npx envsentinel check
+```
+
+Or install it globally:
+
+```bash
+npm install -g envsentinel
+envsentinel check
 ```
 
 This is a **linter**, not a vault. A green `scan` does not mean “no secrets in git.” See [SECURITY.md](./SECURITY.md).
@@ -37,6 +43,7 @@ This is a **linter**, not a vault. A green `scan` does not mean “no secrets in
 - [Requirements](#requirements)
 - [Install](#install)
 - [Quick start](#quick-start)
+- [MCP server for AI agents](#mcp-server-for-ai-agents)
 - [Schema](#schema)
 - [CLI](#cli)
 - [What `check` actually reads](#what-check-actually-reads)
@@ -54,7 +61,26 @@ This is a **linter**, not a vault. A green `scan` does not mean “no secrets in
 
 ## Install
 
-Not on npm. Clone and build:
+Global CLI:
+
+```bash
+npm install -g envsentinel
+envsentinel check
+```
+
+One-off use:
+
+```bash
+npx envsentinel check
+```
+
+Library:
+
+```bash
+npm install envsentinel
+```
+
+From source:
 
 ```bash
 git clone https://github.com/KodYazicam/envsentinel.git
@@ -71,10 +97,47 @@ node dist/cli.js check
 1. Write `env.schema.json` (copy the demo in this repo if you want a start).
 2. `node dist/cli.js example` → `.env.example`
 3. Copy to `.env` and fill real values.
-4. `node dist/cli.js check` in local scripts and CI.
-5. `node dist/cli.js types -o src/env.d.ts` so TypeScript knows the keys.
+4. `envsentinel check` in local scripts and CI.
+5. `envsentinel types -o src/env.d.ts` so TypeScript knows the keys.
 
 Broken JSON in the schema is a **clear error**, not a stack trace. Unknown `type` values are rejected up front.
+
+## MCP server for AI agents
+
+`envsentinel` can run as a stdio [Model Context Protocol](https://modelcontextprotocol.io) server, so Claude Desktop, Claude Code, Cursor, and other MCP clients can validate environment files and scan for leaks as tools:
+
+```bash
+envsentinel mcp
+```
+
+| Tool | What it does |
+| --- | --- |
+| `validate_env` | Validates `.env` against the schema and returns issues/counts, never values. |
+| `scan_secrets` | Scans a directory or text for leaked secrets and returns file:line/kind, never values. |
+| `generate_example` | Returns generated `.env.example` content without writing it. |
+| `generate_types` | Returns generated `env.d.ts` content without writing it. |
+| `diff_env` | Compares `.env` with `.env.example` and returns missing/extra keys. |
+
+Example client configuration:
+
+```json
+{
+  "mcpServers": {
+    "envsentinel": {
+      "command": "npx",
+      "args": ["-y", "envsentinel", "mcp"]
+    }
+  }
+}
+```
+
+For Claude Code:
+
+```bash
+claude mcp add envsentinel -- npx -y envsentinel mcp
+```
+
+The MCP command is optional: normal CLI and library use does not load the SDK. The MCP dependencies are installed by default; if you install with `--omit=optional`, install them explicitly with `npm install @modelcontextprotocol/server zod`.
 
 ## Schema
 
@@ -117,6 +180,7 @@ envsentinel scan [dir] [--json]
 envsentinel example [--schema file] [-o .env.example]
 envsentinel types [--schema file] [-o env.d.ts]
 envsentinel diff [--example .env.example] [--env .env]
+envsentinel mcp
 envsentinel --help
 envsentinel --version
 ```
@@ -171,9 +235,9 @@ The action builds this repository (no npm registry) and runs `check` (then `scan
 ## CI
 
 ```yaml
-- run: node /path/to/envsentinel/dist/cli.js check --strict-file
-- run: node /path/to/envsentinel/dist/cli.js scan .
-- run: node /path/to/envsentinel/dist/cli.js diff
+- run: npx envsentinel check --strict-file
+- run: npx envsentinel scan .
+- run: npx envsentinel diff
 ```
 
 Fail the job on missing production secrets; keep `.env.example` committed and `.env` gitignored.
@@ -183,7 +247,7 @@ Fail the job on missing production secrets; keep `.env.example` committed and `.
 ```ts
 import { readFileSync } from "node:fs";
 import { validateEnv, parseEnv, parseSchema, scanText, typesFromSchema, exampleFromSchema } from "envsentinel";
-// after: npm install /path/to/envsentinel  (this clone; not the npm registry)
+// after: npm install envsentinel
 
 const schema = parseSchema(JSON.parse(readFileSync("env.schema.json", "utf8")));
 const env = parseEnv(readFileSync(".env", "utf8"));
@@ -215,6 +279,13 @@ declare global {
 
 `ProcessEnv` stays strings because `process.env` is always strings. Coerce at the boundary with `validateEnv`.
 
+To build the MCP server programmatically:
+
+```ts
+import { createMcpServer } from "envsentinel/mcp";
+const server = createMcpServer();
+```
+
 ## Troubleshooting
 
 | Symptom | Fix |
@@ -235,9 +306,9 @@ declare global {
 
 **Will it print secret values?** No. `scan` prints file:line and kind only.
 
-**Is this Zod?** No. The schema is a small JSON language. There is no Zod dependency.
+**Is this Zod?** No. The schema is a small JSON language. Zod is only an optional dependency of the MCP server.
 
-**Is it on npm?** No. Clone this repo.
+**Is it on npm?** Yes: `npx envsentinel` or `npm install -g envsentinel`.
 
 ## License — KYAL-1.0
 

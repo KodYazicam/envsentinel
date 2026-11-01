@@ -1,11 +1,13 @@
-import { mkdtempSync, writeFileSync, readFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import { parseEnv } from "../src/parse.js";
 import { validateEnv, typesFromSchema, exampleFromSchema, parseSchema, type EnvSchema } from "../src/schema.js";
 import { scanText, diffExample } from "../src/scan.js";
 import { run } from "../src/cli.js";
+import { invokedDirectly } from "../src/main.js";
 
 const schema: EnvSchema = {
   name: "demo",
@@ -179,6 +181,23 @@ describe("cli", () => {
     expect(report.filesScanned).toBeGreaterThanOrEqual(2);
     expect(report.leaks.some((l: { file: string }) => l.file === "leak.env")).toBe(true);
     expect(JSON.stringify(report)).not.toContain("sk-abcdefghijklmnopqrstuvwxyz");
+  });
+});
+
+describe("invokedDirectly", () => {
+  it("recognizes an npm bin symlink as the CLI entrypoint", () => {
+    const dir = mkdtempSync(join(tmpdir(), "envsentinel-bin-"));
+    const target = join(dir, "cli.js");
+    const link = join(dir, "envsentinel");
+    writeFileSync(target, "#!/usr/bin/env node\n");
+    symlinkSync(target, link);
+    const original = process.argv[1];
+    process.argv[1] = link;
+    try {
+      expect(invokedDirectly(pathToFileURL(target).href)).toBe(true);
+    } finally {
+      process.argv[1] = original;
+    }
   });
 });
 

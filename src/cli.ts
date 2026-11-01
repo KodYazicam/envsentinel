@@ -1,15 +1,10 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
-import { join, resolve, relative } from "node:path";
+import { existsSync, readFileSync, writeFileSync, statSync } from "node:fs";
+import { resolve, relative } from "node:path";
 import { parseEnv } from "./parse.js";
-import {
-  validateEnv,
-  exampleFromSchema,
-  typesFromSchema,
-  parseSchema,
-  type EnvSchema,
-} from "./schema.js";
-import { scanText, diffExample, shouldSkipDir } from "./scan.js";
+import { validateEnv, exampleFromSchema, typesFromSchema } from "./schema.js";
+import { scanText, diffExample } from "./scan.js";
+import { loadSchema, loadEnvFile, walkScanFiles } from "./project.js";
 import { invokedDirectly } from "./main.js";
 import { packageVersion } from "./version.js";
 
@@ -26,6 +21,11 @@ Usage:
   envsentinel example [--schema file] [-o .env.example]
   envsentinel types [--schema file] [-o env.d.ts]
   envsentinel diff [--example .env.example] [--env .env]
+  envsentinel mcp
+
+MCP:
+  envsentinel mcp starts a stdio Model Context Protocol server for AI agents.
+  Tools: validate_env, scan_secrets, generate_example, generate_types, diff_env.
 
 Default schema: env.schema.json  (or envsentinel.schema.json)
 Default env:    .env
@@ -48,49 +48,35 @@ https://github.com/KodYazicam/envsentinel
 `.trim();
 }
 
-function loadSchema(cwd: string, explicit?: string): EnvSchema {
-  const candidates = explicit
-    ? [explicit]
-    : ["env.schema.json", "envsentinel.schema.json"];
-  for (const name of candidates) {
-    const path = resolve(cwd, name);
-    if (existsSync(path)) {
-      let raw: unknown;
-      try {
-        raw = JSON.parse(readFileSync(path, "utf8"));
-      } catch (error) {
-        throw new Error(`${name}: invalid JSON (${(error as Error).message})`);
+function mcpHelp(): string {
+  return `
+envsentinel mcp — Model Context Protocol server
+
+Usage:
+  envsentinel mcp
+
+Starts a stdio MCP server. stdout is reserved for the protocol; diagnostics
+go to stderr. The server exposes:
+
+  validate_env      Validate .env against the schema; never returns values.
+  scan_secrets      Scan a tree or text for leaked secrets.
+  generate_example  Generate .env.example content.
+  generate_types    Generate env.d.ts content.
+  diff_env          Compare .env with .env.example.
+
+Example client configuration:
+
+  {
+    "mcpServers": {
+      "envsentinel": {
+        "command": "npx",
+        "args": ["-y", "envsentinel", "mcp"]
       }
-      return parseSchema(raw, name);
     }
   }
-  throw new Error(
-    `schema not found (looked for ${candidates.join(", ")}). Create env.schema.json, then: envsentinel example`,
-  );
-}
 
-function loadEnvFile(cwd: string, name: string): Record<string, string> {
-  const path = resolve(cwd, name);
-  if (!existsSync(path)) return {};
-  return parseEnv(readFileSync(path, "utf8"));
-}
-
-function walkFiles(dir: string, acc: string[] = []): string[] {
-  let entries;
-  try {
-    entries = readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return acc;
-  }
-  for (const entry of entries) {
-    if (shouldSkipDir(entry.name)) continue;
-    const abs = join(dir, entry.name);
-    if (entry.isDirectory()) walkFiles(abs, acc);
-    else if (/\.(env|ts|js|mjs|cjs|json|yml|yaml|md|py)$/i.test(entry.name) || entry.name.startsWith(".env")) {
-      acc.push(abs);
-    }
-  }
-  return acc;
+Runs locally. No network access, no API key, and no telemetry.
+`.trim();
 }
 
 export function run(argv: string[], cwd = process.cwd()): number {
@@ -103,6 +89,14 @@ export function run(argv: string[], cwd = process.cwd()): number {
     console.log(packageVersion());
     return 0;
   }
+  if (cmd === "mcp") {
+    if (argv.includes("-h") || argv.includes("--help")) {
+      console.log(mcpHelp());
+      return 0;
+    }
+    console.error("envsentinel mcp is a stdio server; run it directly as `envsentinel mcp`.");
+    return 1;
+  }
 
   const flag = (name: string, fallback?: string): string | undefined => {
     const idx = argv.indexOf(name);
@@ -113,7 +107,7 @@ export function run(argv: string[], cwd = process.cwd()): number {
 
   try {
     if (cmd === "check") {
-      const schema = loadSchema(cwd, flag("--schema"));
+      const { schema } = loadSchema(cwd, flag("--schema"));
       const envName = flag("--env", ".env") as string;
       const fileEnv = loadEnvFile(cwd, envName);
       const merged: Record<string, string | undefined> = { ...fileEnv };
@@ -154,7 +148,7 @@ export function run(argv: string[], cwd = process.cwd()): number {
 
     if (cmd === "scan") {
       const target = resolve(cwd, argv[1] && !argv[1].startsWith("-") ? argv[1] : ".");
-      const files = statSync(target).isDirectory() ? walkFiles(target) : [target];
+      const files = statSync(target).isDirectory() ? walkScanFiles(target) : [target];
       let count = 0;
       const leaks: Array<{ file: string; line: number; kind: string; key?: string }> = [];
       for (const file of files) {
@@ -185,7 +179,7 @@ export function run(argv: string[], cwd = process.cwd()): number {
     }
 
     if (cmd === "example") {
-      const schema = loadSchema(cwd, flag("--schema"));
+      const { schema } = loadSchema(cwd, flag("--schema"));
       const out = flag("-o") ?? flag("--out") ?? ".env.example";
       writeFileSync(resolve(cwd, out), exampleFromSchema(schema));
       console.log(`wrote ${out}`);
@@ -193,7 +187,7 @@ export function run(argv: string[], cwd = process.cwd()): number {
     }
 
     if (cmd === "types") {
-      const schema = loadSchema(cwd, flag("--schema"));
+      const { schema } = loadSchema(cwd, flag("--schema"));
       const out = flag("-o") ?? flag("--out") ?? "env.d.ts";
       writeFileSync(resolve(cwd, out), typesFromSchema(schema));
       console.log(`wrote ${out}`);
@@ -229,4 +223,32 @@ export function run(argv: string[], cwd = process.cwd()): number {
   }
 }
 
-if (invokedDirectly(import.meta.url)) process.exitCode = run(process.argv.slice(2));
+function startMcp(): void {
+  import("./mcp.js")
+    .then(({ runMcpServer }) => {
+      runMcpServer();
+    })
+    .catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`envsentinel mcp: ${message}`);
+      console.error(
+        "Install the optional MCP dependencies with: npm install @modelcontextprotocol/server zod",
+      );
+      process.exitCode = 1;
+    });
+}
+
+if (invokedDirectly(import.meta.url)) {
+  const argv = process.argv.slice(2);
+  if (argv[0] === "mcp" && !argv.includes("-h") && !argv.includes("--help")) {
+    const rest = argv.slice(1);
+    if (rest.length > 0) {
+      console.error(`envsentinel mcp: unexpected argument(s): ${rest.join(" ")}`);
+      process.exitCode = 1;
+    } else {
+      startMcp();
+    }
+  } else {
+    process.exitCode = run(argv);
+  }
+}
