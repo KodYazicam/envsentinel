@@ -1,6 +1,6 @@
 {
   "name": "@kodyazicam/envsentinel",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Validate .env files against a schema, scan for leaked secrets, generate TypeScript types, and expose an MCP server for AI agents.",
   "keywords": [
     "env",
