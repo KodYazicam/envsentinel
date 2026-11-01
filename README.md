@@ -9,7 +9,7 @@
 
 <p align="center">
   <a href="https://github.com/KodYazicam/envsentinel/actions"><img src="https://img.shields.io/github/actions/workflow/status/KodYazicam/envsentinel/ci.yml?style=flat-square" alt="CI"></a>
-  <a href="https://www.npmjs.com/package/envsentinel"><img src="https://img.shields.io/npm/v/envsentinel?style=flat-square" alt="npm"></a>
+  <a href="https://www.npmjs.com/package/@kodyazicam/envsentinel"><img src="https://img.shields.io/npm/v/@kodyazicam/envsentinel?style=flat-square" alt="npm"></a>
   <img src="https://img.shields.io/badge/node-%3E%3D20-339933?style=flat-square" alt="Node">
   <img src="https://img.shields.io/badge/license-KYAL--1.0-7C3AED?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/author-KodYazicam-0D0D0D?style=flat-square" alt="Author">
@@ -26,13 +26,13 @@
 - **diff** — compare `.env` against `.env.example` (the classic “works on my machine” bug)
 
 ```bash
-npx envsentinel check
+npx @kodyazicam/envsentinel check
 ```
 
 Or install it globally:
 
 ```bash
-npm install -g envsentinel
+npm install -g @kodyazicam/envsentinel
 envsentinel check
 ```
 
@@ -64,20 +64,20 @@ This is a **linter**, not a vault. A green `scan` does not mean “no secrets in
 Global CLI:
 
 ```bash
-npm install -g envsentinel
+npm install -g @kodyazicam/envsentinel
 envsentinel check
 ```
 
 One-off use:
 
 ```bash
-npx envsentinel check
+npx @kodyazicam/envsentinel check
 ```
 
 Library:
 
 ```bash
-npm install envsentinel
+npm install @kodyazicam/envsentinel
 ```
 
 From source:
@@ -125,7 +125,7 @@ Example client configuration:
   "mcpServers": {
     "envsentinel": {
       "command": "npx",
-      "args": ["-y", "envsentinel", "mcp"]
+      "args": ["-y", "@kodyazicam/envsentinel", "mcp"]
     }
   }
 }
@@ -134,7 +134,7 @@ Example client configuration:
 For Claude Code:
 
 ```bash
-claude mcp add envsentinel -- npx -y envsentinel mcp
+claude mcp add envsentinel -- npx -y @kodyazicam/envsentinel mcp
 ```
 
 The MCP command is optional: normal CLI and library use does not load the SDK. The MCP dependencies are installed by default; if you install with `--omit=optional`, install them explicitly with `npm install @modelcontextprotocol/server zod`.
@@ -235,9 +235,9 @@ The action builds this repository (no npm registry) and runs `check` (then `scan
 ## CI
 
 ```yaml
-- run: npx envsentinel check --strict-file
-- run: npx envsentinel scan .
-- run: npx envsentinel diff
+- run: npx @kodyazicam/envsentinel check --strict-file
+- run: npx @kodyazicam/envsentinel scan .
+- run: npx @kodyazicam/envsentinel diff
 ```
 
 Fail the job on missing production secrets; keep `.env.example` committed and `.env` gitignored.
@@ -246,8 +246,8 @@ Fail the job on missing production secrets; keep `.env.example` committed and `.
 
 ```ts
 import { readFileSync } from "node:fs";
-import { validateEnv, parseEnv, parseSchema, scanText, typesFromSchema, exampleFromSchema } from "envsentinel";
-// after: npm install envsentinel
+import { validateEnv, parseEnv, parseSchema, scanText, typesFromSchema, exampleFromSchema } from "@kodyazicam/envsentinel";
+// after: npm install @kodyazicam/envsentinel
 
 const schema = parseSchema(JSON.parse(readFileSync("env.schema.json", "utf8")));
 const env = parseEnv(readFileSync(".env", "utf8"));
@@ -282,7 +282,7 @@ declare global {
 To build the MCP server programmatically:
 
 ```ts
-import { createMcpServer } from "envsentinel/mcp";
+import { createMcpServer } from "@kodyazicam/envsentinel/mcp";
 const server = createMcpServer();
 ```
 
@@ -308,7 +308,7 @@ const server = createMcpServer();
 
 **Is this Zod?** No. The schema is a small JSON language. Zod is only an optional dependency of the MCP server.
 
-**Is it on npm?** Yes: `npx envsentinel` or `npm install -g envsentinel`.
+**Is it on npm?** Yes: `npx @kodyazicam/envsentinel` or `npm install -g @kodyazicam/envsentinel`.
 
 ## License — KYAL-1.0
 

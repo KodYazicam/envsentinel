@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- First public npm release: `envsentinel`.
+- First public npm release: `@kodyazicam/envsentinel`.
 - Schema validation for `.env` files with coercion for string, number, boolean,
   URL, email, enum, and JSON fields.
 - Secret scanning for AWS, GitHub, OpenAI, Anthropic, Stripe, Slack, Google,

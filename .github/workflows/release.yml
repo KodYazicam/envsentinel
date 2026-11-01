@@ -36,8 +36,8 @@ jobs:
       - name: Publish to npm
         run: |
           version="${GITHUB_REF_NAME#v}"
-          if npm view "envsentinel@${version}" version >/dev/null 2>&1; then
-            echo "envsentinel@${version} is already published; skipping."
+          if npm view "@kodyazicam/envsentinel@${version}" version >/dev/null 2>&1; then
+            echo "@kodyazicam/envsentinel@${version} is already published; skipping."
           else
             npm publish --provenance --access public
           fi
