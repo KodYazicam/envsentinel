@@ -38,6 +38,8 @@ jobs:
           version="${GITHUB_REF_NAME#v}"
           if npm view "@kodyazicam/envsentinel@${version}" version >/dev/null 2>&1; then
             echo "@kodyazicam/envsentinel@${version} is already published; skipping."
+          elif npm dist-tag ls "@kodyazicam/envsentinel" 2>/dev/null | grep -Eq ": ${version}$"; then
+            echo "@kodyazicam/envsentinel@${version} is already published; skipping."
           else
             npm publish --provenance --access public
           fi
