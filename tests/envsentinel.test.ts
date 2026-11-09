@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
-import { parseEnv } from "../src/parse.js";
+import { parseEnv, stringifyEnv } from "../src/parse.js";
 import { validateEnv, typesFromSchema, exampleFromSchema, parseSchema, type EnvSchema } from "../src/schema.js";
 import { scanText, diffExample } from "../src/scan.js";
 import { run } from "../src/cli.js";
@@ -38,6 +38,14 @@ BAD
     expect(env.A).toBe("value#fragment");
     expect(env.B).toBe("value");
     expect(env.C).toBe("quoted # kept");
+  });
+});
+
+describe("stringifyEnv", () => {
+  it("quotes whitespace and escapes double quotes", () => {
+    expect(stringifyEnv({ A: "plain", B: "hello world", C: 'has"quote' })).toBe(
+      'A=plain\nB="hello world"\nC="has\\"quote"',
+    );
   });
 });
 
@@ -192,6 +200,18 @@ describe("secret pattern fixtures", () => {
 });
 
 describe("cli", () => {
+  it("prints help without touching the filesystem", () => {
+    const log = console.log;
+    const lines: string[] = [];
+    console.log = (message?: unknown) => lines.push(String(message ?? ""));
+    try {
+      expect(run(["--help"])).toBe(0);
+    } finally {
+      console.log = log;
+    }
+    expect(lines.join("\n")).toContain("Usage:");
+  });
+
   it("check / types / example / scan round-trip", () => {
     const dir = mkdtempSync(join(tmpdir(), "envsentinel-"));
     writeFileSync(join(dir, "env.schema.json"), JSON.stringify(schema, null, 2));

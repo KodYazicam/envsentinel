@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Replaced potentially backtracking regular expressions in `.env` parsing,
   email validation, and assignment detection with bounded linear scans.
+- Upgraded `vitest` and `@vitest/coverage-v8` to 5.1.0, clearing the dev-only
+  dependency advisories.
 
 ## [1.0.1] - 2026-11-01
 
