@@ -60,7 +60,7 @@
     "build": "tsc -p tsconfig.build.json",
     "prepack": "npm run build",
     "prepublishOnly": "npm test && npm run typecheck",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
     "test:coverage": "vitest run --coverage"
