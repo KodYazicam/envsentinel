@@ -11,7 +11,7 @@
   <a href="https://github.com/KodYazicam/envsentinel/actions"><img src="https://img.shields.io/github/actions/workflow/status/KodYazicam/envsentinel/ci.yml?style=flat-square" alt="CI"></a>
   <a href="https://www.npmjs.com/package/@kodyazicam/envsentinel"><img src="https://img.shields.io/npm/v/@kodyazicam/envsentinel?style=flat-square" alt="npm"></a>
   <img src="https://img.shields.io/badge/node-%3E%3D20-339933?style=flat-square" alt="Node">
-  <img src="https://img.shields.io/badge/license-KYAL--1.0-7C3AED?style=flat-square" alt="License">
+  <img src="https://img.shields.io/badge/license-Apache--2.0-2ea44f?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/author-KodYazicam-0D0D0D?style=flat-square" alt="Author">
 </p>
 
@@ -52,7 +52,7 @@ This is a **linter**, not a vault. A green `scan` does not mean “no secrets in
 - [Library](#library)
 - [Troubleshooting](#troubleshooting)
 - [FAQ](#faq)
-- [License](#license--kyal-10)
+- [License](#license)
 
 ## Requirements
 
@@ -310,16 +310,10 @@ const server = createMcpServer();
 
 **Is it on npm?** Yes: `npx @kodyazicam/envsentinel` or `npm install -g @kodyazicam/envsentinel`.
 
-## License — KYAL-1.0
+## License
 
-Free to use and modify. **Attribution is mandatory.** Not OSI-approved; MIT-shaped plus credit.
+Apache-2.0. See [LICENSE](./LICENSE).
 
-```
-Author : Batuhan (KodYazicam)
-Project: envsentinel
-Source : https://github.com/KodYazicam/envsentinel
-```
-
-See [LICENSE](./LICENSE).
+Commercial use, modification, and distribution are permitted under the Apache License 2.0. Keep the license text with distributed copies.
 
 <p align="center"><sub>Built by <a href="https://github.com/KodYazicam">KodYazicam</a></sub></p>
