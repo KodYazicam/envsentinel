@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Added positive and negative fixtures for every secret pattern.
+- Secret fixtures in the scanner tests are now assembled at runtime.
+
+### Security
+
+- Replaced potentially backtracking regular expressions in `.env` parsing,
+  email validation, and assignment detection with bounded linear scans.
 
 ## [1.0.1] - 2026-11-01
 
