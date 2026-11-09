@@ -43,7 +43,7 @@ scan:
   node_modules, .git, dist, .venv, vendor, lockfiles, and .env.example.
   --json prints one JSON object with the leak list (no secret values).
 
-License: KYAL-1.0 — free to use, attribution required.
+License: Apache-2.0.
 https://github.com/KodYazicam/envsentinel
 `.trim();
 }

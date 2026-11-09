@@ -15,7 +15,7 @@
     "ai-agent",
     "llm-tools"
   ],
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "Apache-2.0",
   "author": "Batuhan (KodYazicam) <https://github.com/KodYazicam>",
   "homepage": "https://github.com/KodYazicam/envsentinel",
   "repository": {
@@ -62,10 +62,12 @@
     "prepublishOnly": "npm test && npm run typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -p tsconfig.build.json --noEmit"
+    "typecheck": "tsc -p tsconfig.build.json --noEmit",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^2.1.9",
     "typescript": "^5.7.0",
     "vitest": "^2.1.0"
   },
