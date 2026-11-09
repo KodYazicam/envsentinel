@@ -26,6 +26,27 @@ const FALSE = new Set(["0", "false", "no", "off"]);
 const TYPES: EnvType[] = ["string", "number", "boolean", "url", "email", "enum", "json"];
 const URL_SCHEMES = new Set(["http:", "https:", "postgres:", "postgresql:", "mysql:", "mongodb:", "mongo:", "redis:", "rediss:", "amqp:", "amqps:", "sqlite:"]);
 
+function isEmail(value: string): boolean {
+  if (value.length > 254) return false;
+  const at = value.indexOf("@");
+  if (at <= 0 || at !== value.lastIndexOf("@")) return false;
+  const local = value.slice(0, at);
+  const domain = value.slice(at + 1);
+  if (!local || !domain || local.length > 64 || domain.length > 253) return false;
+  if (local.startsWith(".") || local.endsWith(".") || local.includes("..")) return false;
+  if (domain.startsWith(".") || domain.endsWith(".") || domain.includes("..")) return false;
+  if (domain.lastIndexOf(".") <= 0) return false;
+  for (const char of local) {
+    const code = char.charCodeAt(0);
+    if (code <= 32 || code === 127 || char === "@") return false;
+  }
+  for (const char of domain) {
+    const code = char.charCodeAt(0);
+    if (code <= 32 || code === 127) return false;
+  }
+  return true;
+}
+
 export function parseSchema(raw: unknown, source = "schema"): EnvSchema {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     throw new Error(`${source}: expected a JSON object with a "fields" map`);
@@ -94,7 +115,7 @@ export function coerce(value: string, field: FieldSchema): unknown {
       return value;
     }
     case "email": {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) throw new Error("not an email");
+      if (!isEmail(value)) throw new Error("not an email");
       return value;
     }
     case "enum": {

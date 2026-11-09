@@ -32,6 +32,13 @@ BAD
     expect(env.BAZ).toBe("hello world");
     expect(env.EMPTY).toBe("");
   });
+
+  it("only strips inline comments after whitespace", () => {
+    const env = parseEnv('A=value#fragment\nB=value # comment\nC="quoted # kept" # comment\n');
+    expect(env.A).toBe("value#fragment");
+    expect(env.B).toBe("value");
+    expect(env.C).toBe("quoted # kept");
+  });
 });
 
 describe("validateEnv", () => {
@@ -63,6 +70,22 @@ describe("validateEnv", () => {
     expect(result.issues.some((i) => i.key === "DATABASE_URL")).toBe(true);
     expect(result.issues.some((i) => i.key === "NODE_ENV")).toBe(true);
   });
+
+  it("validates email fields without regex backtracking", () => {
+    const emailSchema: EnvSchema = { fields: { EMAIL: { type: "email", required: true } } };
+    expect(validateEnv({ EMAIL: "dev@example.com" }, emailSchema).ok).toBe(true);
+    for (const bad of [
+      "dev@",
+      "@example.com",
+      "dev@@example.com",
+      "dev@example",
+      "dev @example.com",
+      "dev@example..com",
+      `${"a".repeat(65)}@example.com`,
+    ]) {
+      expect(validateEnv({ EMAIL: bad }, emailSchema).ok).toBe(false);
+    }
+  });
 });
 
 describe("codegen", () => {
@@ -83,9 +106,13 @@ describe("scan + diff", () => {
   });
 
   it("detects google, telegram, npm, and slack webhook leaks", () => {
-    expect(scanText("conf.env", 'G_KEY="AIzaSyA1234567890abcdefghijklmnopqrstuv"\n')[0]?.kind).toBe("google-api-key");
-    expect(scanText("conf.env", 'TG=123456789:AAEqwertyuiopasdfghjklzxcvbnm_12345\n')[0]?.kind).toBe("telegram-bot-token");
-    expect(scanText("conf.env", 'NPM=npm_Nkqrstuvwxyz0123456789abcdefghijklmn\n')[0]?.kind).toBe("npm-token");
+    const joinSecret = (...parts: string[]) => parts.join("");
+    const google = joinSecret("AIza", "SyA1234567890abcdefghijklmnopqrstuv");
+    const telegram = joinSecret("123456789", ":", "AAEqwertyuiopasdfghjklzxcvbnm_12345");
+    const npm = joinSecret("npm_", "Nkqrstuvwxyz0123456789abcdefghijklmn");
+    expect(scanText("conf.env", `G_KEY="${google}"\n`)[0]?.kind).toBe("google-api-key");
+    expect(scanText("conf.env", `TG=${telegram}\n`)[0]?.kind).toBe("telegram-bot-token");
+    expect(scanText("conf.env", `NPM=${npm}\n`)[0]?.kind).toBe("npm-token");
     const webhook = ["https://hooks.slack.com/services/T00000000", "B11111111", "XXXXXXXXXXXXXXXXXXXXXXXX"].join("/");
     expect(scanText("conf.env", `HOOK=${webhook}\n`)[0]?.kind).toBe("slack-webhook");
   });

@@ -2,6 +2,10 @@ export interface EnvMap {
   [key: string]: string;
 }
 
+function isWhitespace(char: string): boolean {
+  return char === " " || char === "\t" || char === "\n" || char === "\r" || char === "\f" || char === "\v";
+}
+
 export function parseEnv(source: string): EnvMap {
   const out: EnvMap = {};
   const lines = source.split(/\r?\n/);
@@ -43,8 +47,14 @@ export function parseEnv(source: string): EnvMap {
           .replace(/\\'/g, "'");
       }
     } else {
-      const hash = value.search(/\s+#/);
-      if (hash >= 0) value = value.slice(0, hash).trim();
+      let comment = -1;
+      for (let i = 1; i < value.length; i += 1) {
+        if (value[i] === "#" && isWhitespace(value[i - 1])) {
+          comment = i - 1;
+          break;
+        }
+      }
+      if (comment >= 0) value = value.slice(0, comment).trim();
     }
     out[key] = value;
   }

@@ -41,7 +41,25 @@ const SKIP_DIRS = new Set([
   ".cache",
 ]);
 
-const ENV_ASSIGN = /^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/;
+function isEnvKey(key: string): boolean {
+  if (!key) return false;
+  const first = key.charCodeAt(0);
+  const firstOk = first === 95 || (first >= 65 && first <= 90) || (first >= 97 && first <= 122);
+  if (!firstOk) return false;
+  for (let i = 1; i < key.length; i += 1) {
+    const code = key.charCodeAt(i);
+    const ok = code === 95 || (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+    if (!ok) return false;
+  }
+  return true;
+}
+
+function assignmentKey(line: string): string | undefined {
+  const equals = line.indexOf("=");
+  if (equals <= 0) return undefined;
+  const key = line.slice(0, equals).trim();
+  return isEnvKey(key) ? key : undefined;
+}
 
 export function shouldScanFile(file: string): boolean {
   return !SKIP_SCAN.test(file.replaceAll("\\", "/"));
@@ -58,11 +76,11 @@ export function scanText(file: string, source: string): Leak[] {
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
     if (line.trim().startsWith("#")) continue;
-    const assign = line.match(ENV_ASSIGN);
+    const key = assignmentKey(line);
     for (const { kind, regex } of SECRET_VALUE) {
       regex.lastIndex = 0;
       if (regex.test(line)) {
-        leaks.push({ file, line: i + 1, kind, key: assign?.[1] });
+        leaks.push({ file, line: i + 1, kind, key });
       }
     }
   }
