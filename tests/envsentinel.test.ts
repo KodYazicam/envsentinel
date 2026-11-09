@@ -102,6 +102,68 @@ describe("scan + diff", () => {
   });
 });
 
+describe("secret pattern fixtures", () => {
+  const parts = (...values: string[]) => values.join("");
+  const slackWebhook = (suffix: string) =>
+    ["https:", "", "hooks." + "slack.com", "services", suffix].join("/");
+  const positiveFixtures: Array<{ kind: string; value: string }> = [
+    { kind: "aws-access-key", value: parts("AKIA", "1234567890ABCDEF") },
+    { kind: "github-token", value: parts("ghp_", "abcdefghijklmnopqrstuvwxyz0123456789") },
+    {
+      kind: "github-fine-grained",
+      value: parts("github_pat_", "abcdefghijklmnopqrstuvwxyz0123456789"),
+    },
+    { kind: "openai-key", value: parts("sk-", "abcdefghijklmnopqrstuvwxyz123456") },
+    { kind: "openai-key", value: parts("sk-", "proj-", "abcdefghijklmnopqrstuvwxyz123456") },
+    { kind: "openai-key", value: parts("sk-", "svcacct-", "abcdefghijklmnopqrstuvwxyz123456") },
+    { kind: "anthropic-key", value: parts("sk-", "ant-", "abcdefghijklmnopqrstuvwxyz123456") },
+    { kind: "stripe-key", value: parts("sk_", "live_", "abcdefghijklmnopqrstuvwx") },
+    { kind: "stripe-webhook", value: parts("wh", "sec_", "abcdefghijklmnopqrstuvwx") },
+    { kind: "private-key", value: parts("-----BEGIN ", "RSA PRIVATE KEY", "-----") },
+    { kind: "slack-token", value: parts("xoxb-", "123456789012") },
+    { kind: "slack-webhook", value: slackWebhook("T00000000/B11111111/XXXXXXXXXXXXXXXXXXXXXXXX") },
+    { kind: "google-api-key", value: parts("AIza", "SyA1234567890abcdefghijklmnopqrstuv") },
+    {
+      kind: "telegram-bot-token",
+      value: parts("123456789", ":", "AAEqwertyuiopasdfghjklzxcvbnm_12345"),
+    },
+    { kind: "npm-token", value: parts("npm_", "Nkqrstuvwxyz0123456789abcdefghijklmn") },
+  ];
+
+  const negativeFixtures: Array<{ kind: string; value: string }> = [
+    { kind: "aws-access-key", value: parts("AKIA", "1234567890ABCDE") },
+    { kind: "github-token", value: parts("ghp_", "short") },
+    { kind: "github-fine-grained", value: parts("github_pat_", "short") },
+    { kind: "openai-key", value: parts("sk-", "abcdefghijklmnopqrstuvwxyz12345") },
+    { kind: "anthropic-key", value: parts("sk-", "ant-", "short") },
+    { kind: "stripe-key", value: parts("sk_", "test_", "abcdefghijklmnopqrstuvwx") },
+    { kind: "stripe-webhook", value: parts("wh", "sec_", "short") },
+    { kind: "private-key", value: parts("-----BEGIN ", "PUBLIC KEY", "-----") },
+    { kind: "slack-token", value: parts("xoxz-", "123456789012") },
+    { kind: "slack-webhook", value: slackWebhook("short") },
+    { kind: "google-api-key", value: parts("AIza", "SyA1234567890abcdefghijklmnopqrstu") },
+    {
+      kind: "telegram-bot-token",
+      value: parts("123456789", ":", "AAEqwertyuiopasdfghjklzxcvbnm_1234"),
+    },
+    { kind: "npm-token", value: parts("npm_", "Nkqrstuvwxyz0123456789abcdefghijklm") },
+  ];
+
+  it.each(positiveFixtures)("detects $kind", ({ kind, value }) => {
+    const leaks = scanText("fixture.env", `VALUE=${value}\n`);
+    expect(leaks.some((leak) => leak.kind === kind)).toBe(true);
+  });
+
+  it.each(negativeFixtures)("does not flag $kind lookalikes", ({ value }) => {
+    expect(scanText("fixture.env", `VALUE=${value}\n`)).toEqual([]);
+  });
+
+  it("skips every positive fixture in example files", () => {
+    const source = positiveFixtures.map(({ value }, index) => `KEY_${index}=${value}`).join("\n");
+    expect(scanText(".env.example", source)).toEqual([]);
+  });
+});
+
 describe("cli", () => {
   it("check / types / example / scan round-trip", () => {
     const dir = mkdtempSync(join(tmpdir(), "envsentinel-"));
