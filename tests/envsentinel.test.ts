@@ -47,6 +47,14 @@ describe("stringifyEnv", () => {
       'A=plain\nB="hello world"\nC="has\\"quote"',
     );
   });
+
+  it("rejects keys and values that could inject an additional .env assignment", () => {
+    expect(() => stringifyEnv({ TOKEN: "safe\nINJECTED=1" })).toThrow(/contains a newline/);
+    expect(() => stringifyEnv({ TOKEN: "safe\rINJECTED=1" })).toThrow(/contains a newline/);
+    expect(() => stringifyEnv({ "SAFE\nINJECTED": "1" })).toThrow(/invalid environment variable name/);
+    expect(() => stringifyEnv({ "BAD-NAME": "1" })).toThrow(/invalid environment variable name/);
+    expect(parseEnv(stringifyEnv({ TOKEN: "safe value" })).TOKEN).toBe("safe value");
+  });
 });
 
 describe("validateEnv", () => {
