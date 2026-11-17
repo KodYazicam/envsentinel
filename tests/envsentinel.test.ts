@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import { parseEnv, stringifyEnv } from "../src/parse.js";
+import { walkScanFiles } from "../src/project.js";
 import { validateEnv, typesFromSchema, exampleFromSchema, parseSchema, type EnvSchema } from "../src/schema.js";
 import { scanText, diffExample } from "../src/scan.js";
 import { run } from "../src/cli.js";
@@ -108,6 +109,19 @@ describe("codegen", () => {
 });
 
 describe("scan + diff", () => {
+  it("does not follow symlinks outside the recursive scan root", () => {
+    const root = mkdtempSync(join(tmpdir(), "envsentinel-scan-root-"));
+    const outside = mkdtempSync(join(tmpdir(), "envsentinel-scan-outside-"));
+    const secret = join(outside, "secret.env");
+    writeFileSync(secret, "PRIVATE_KEY=out-of-scope\n");
+    symlinkSync(secret, join(root, ".env"));
+    symlinkSync(outside, join(root, "linked-dir"), "dir");
+    const local = join(root, "local.env");
+    writeFileSync(local, "SAFE=value\n");
+
+    expect(walkScanFiles(root)).toEqual([local]);
+  });
+
   it("detects openai keys", () => {
     const leaks = scanText(".env", 'OPENAI_API_KEY=sk-abcdefghijklmnopqrstuvwxyz123456\n');
     expect(leaks[0]?.kind).toBe("openai-key");
