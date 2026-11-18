@@ -42,6 +42,9 @@ export function walkScanFiles(dir: string, acc: string[] = []): string[] {
   }
   for (const entry of entries) {
     if (shouldSkipDir(entry.name)) continue;
+    // A repository can contain symlinks to files outside the requested scan root.
+    // Do not follow those links and disclose out-of-scope secret metadata.
+    if (entry.isSymbolicLink()) continue;
     const abs = join(dir, entry.name);
     if (entry.isDirectory()) walkScanFiles(abs, acc);
     else if (/\.(env|ts|js|mjs|cjs|json|yml|yaml|md|py)$/i.test(entry.name) || entry.name.startsWith(".env")) {
