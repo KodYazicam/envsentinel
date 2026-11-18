@@ -64,6 +64,14 @@ export function parseEnv(source: string): EnvMap {
 export function stringifyEnv(map: EnvMap): string {
   return Object.entries(map)
     .map(([k, v]) => {
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(k)) {
+        throw new Error(`invalid environment variable name: ${JSON.stringify(k)}`);
+      }
+      // The parser is line-oriented. A literal newline would inject a second
+      // assignment into the generated .env rather than round-trip as data.
+      if (/[\r\n]/.test(v)) {
+        throw new Error(`environment variable ${k} contains a newline`);
+      }
       const needsQuote = /[\s#"']/.test(v);
       const rendered = needsQuote ? `"${v.replaceAll('"', '\\"')}"` : v;
       return `${k}=${rendered}`;
